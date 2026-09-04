@@ -163,6 +163,8 @@ python outlook_reg_loop.py
 # [重要] Graph RT 提取必须配置可接收验证码的辅助邮箱，否则 proofs/Add 安全信息页无法完成授权
 # 默认使用 YYDS 辅助邮箱并自动接码
 python tools/extract_graph_tokens.py --email user@outlook.com --password 'password'
+# 仅做 Outlook Graph 授权：批量粘贴/准备 email----password（也兼容五个短横线），不执行账号解锁
+python tools/authorize_outlook.py --input accounts.txt --concurrency 3
 # 自定义临时邮箱：.env 设置 OUTLOOK_GRAPH_RECOVERY_PROVIDER=custom，并填好 CUSTOM_MAIL_*
 # 自有 Outlook 辅助邮箱：设置 provider=outlook，并填
 # OUTLOOK_GRAPH_RECOVERY_OUTLOOK_MAILBOX=email@outlook.com----password----refresh_token----client_id

@@ -3502,6 +3502,59 @@ async def api_run(request: Request):
     return await _start_managed_run(cmd, sid, task_env, task_cwd)
 
 
+@app.post("/api/authorize-outlook")
+async def api_authorize_outlook(request: Request):
+    """Start the authorization-only Outlook worker from pasted credentials."""
+    data = await request.json()
+    account_text = str((data or {}).get("accounts") or "")
+    if not account_text.strip():
+        return JSONResponse({"error": "请粘贴至少一个 email----password 账号"}, status_code=400)
+    if len(account_text) > 5_000_000:
+        return JSONResponse({"error": "账号内容超过 5 MB"}, status_code=413)
+    try:
+        from tools.authorize_outlook import load_accounts
+
+        runtime_root = os.path.abspath(os.environ.get("REG_FACTORY_DATA_DIR") or ROOT)
+        runtime_dir = os.path.join(runtime_root, "runtime", "outlook_authorize")
+        os.makedirs(runtime_dir, exist_ok=True)
+        descriptor, input_path = tempfile.mkstemp(prefix="accounts-", suffix=".txt", dir=runtime_dir, text=True)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(account_text.replace("\r\n", "\n") + "\n")
+            with contextlib.suppress(OSError):
+                os.chmod(input_path, 0o600)
+            records = load_accounts(input_path)
+        except Exception:
+            with contextlib.suppress(OSError):
+                os.unlink(input_path)
+            raise
+        if not records:
+            with contextlib.suppress(OSError):
+                os.unlink(input_path)
+            return JSONResponse({"error": "没有可授权的账号"}, status_code=400)
+        try:
+            concurrency = max(1, min(10, int((data or {}).get("concurrency") or 3)))
+        except (TypeError, ValueError):
+            with contextlib.suppress(OSError):
+                os.unlink(input_path)
+            return JSONResponse({"error": "并发数必须是 1-10 的整数"}, status_code=400)
+        script = schema.script_by_id("unlock_outlook")
+        args = {
+            "--input": input_path,
+            "--concurrency": concurrency,
+            "--no-update-pool": bool((data or {}).get("no_update_pool")),
+        }
+        task_env = _child_env("outlook")
+        from common import proxy_switch
+
+        await asyncio.to_thread(proxy_switch.ensure_proxy_mode, task_env)
+        started = await _start_managed_run(_build_cmd(script, args), "unlock_outlook", task_env, runtime_root)
+        RUNS[started["run_id"]]["sensitive_input_path"] = input_path
+        return {**started, "accepted": len(records), "accepted_emails": [email for email, _password in records]}
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)[:240]}, status_code=400)
+
+
 @app.get("/api/logs/{run_id}")
 async def api_logs(run_id: str):
     rec = RUNS.get(run_id)

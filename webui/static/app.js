@@ -1774,6 +1774,7 @@ function selectScript(id){
 
 // ---------------------------------------------------------------- 渲染表单
 function renderArgField(a){
+  if(a.hidden) return null;
   const f = document.createElement('div');
   f.className='field';
   f.dataset.argFlag = a.flag;
@@ -1825,14 +1826,25 @@ function renderForm(s){
   const primaryArgs = s.args.slice(0, 6);
   const advancedArgs = s.args.slice(6);
   const grid = document.createElement('div'); grid.className='form-grid';
-  primaryArgs.forEach(a=>grid.appendChild(renderArgField(a)));
+  primaryArgs.filter(a=>!a.hidden).forEach(a=>grid.appendChild(renderArgField(a)));
   p.appendChild(grid);
+  if(s.id === 'unlock_outlook') {
+    const input = $('#f_input');
+    if(input) {
+      const area = document.createElement('textarea');
+      area.id = 'f_input';
+      area.placeholder = 'aaa@outlook.com----Password123\nbbb@outlook.com----Password456';
+      area.spellcheck = false;
+      area.autocomplete = 'off';
+      input.replaceWith(area);
+    }
+  }
   if(advancedArgs.length){
     const more = document.createElement('details'); more.className='advanced-fields';
     more.dataset.guide = 'advanced-task-options';
     more.innerHTML = `<summary><span>更多设置</span><span>${advancedArgs.length} 项</span></summary>`;
     const moreGrid = document.createElement('div'); moreGrid.className='form-grid';
-    advancedArgs.forEach(a=>moreGrid.appendChild(renderArgField(a)));
+    advancedArgs.filter(a=>!a.hidden).forEach(a=>moreGrid.appendChild(renderArgField(a)));
     more.appendChild(moreGrid);
     p.appendChild(more);
   }
@@ -1874,6 +1886,7 @@ function renderForm(s){
 function collectArgs(s){
   const args = {};
   s.args.forEach(a=>{
+    if(a.hidden) return;
     const label = a.flag.replace(/^--/,'');
     if(a.type==='bool'){
       args[a.flag] = $(`#f_${label}`).checked;
@@ -1892,6 +1905,7 @@ function captureScriptDraft(s){
   if(!s || !panel?.children.length) return;
   const draft = {};
   s.args.forEach(a=>{
+    if(a.hidden) return;
     const label = a.flag.replace(/^--/,'');
     if(a.type==='bool'){
       draft[a.flag] = !!$(`#f_${label}`)?.checked;
@@ -1909,6 +1923,7 @@ function restoreScriptDraft(s){
   const draft = scriptDrafts.get(s.id);
   if(!draft) return;
   s.args.forEach(a=>{
+    if(a.hidden) return;
     const label = a.flag.replace(/^--/,'');
     if(a.type==='bool'){
       const input = $(`#f_${label}`);
@@ -1947,8 +1962,12 @@ async function runScript(){
   setRunState('running', '运行中');
   let r;
   try{
-    r = await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({script:curSrc.id, args})})).json();
+    const endpoint = curSrc.id === 'unlock_outlook' ? '/api/authorize-outlook' : '/api/run';
+    const payload = curSrc.id === 'unlock_outlook'
+      ? {accounts: args['--input'] || '', concurrency: args['--concurrency'] || 3, no_update_pool: !!args['--no-update-pool']}
+      : {script:curSrc.id, args};
+    r = await (await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)})).json();
   }catch(e){
     log.textContent='启动失败: '+e;
     setRunState('failed', '启动失败');
@@ -1960,7 +1979,9 @@ async function runScript(){
     return;
   }
   curRun = r.run_id;
-  $('#cmd-preview').textContent = '$ '+r.cmd;
+  $('#cmd-preview').textContent = curSrc.id === 'unlock_outlook'
+    ? `已提交 ${r.accepted || 0} 个账号，密码不会显示在日志或命令预览中`
+    : '$ '+r.cmd;
   $('#btn-stop').disabled = false;
   const stream = new EventSource(`/api/logs/${curRun}`);
   evtSrc = stream;
