@@ -30,6 +30,15 @@ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW
 """.split()]
 CHATGPT_COUNTRY_LABELS = {"auto": "自动"}
 
+try:
+    from config import (
+        CLAUDE_PROTOCOL_VERSION as DEFAULT_CLAUDE_PROTOCOL_VERSION,
+        CLAUDE_REGISTRATION_PROTOCOL as DEFAULT_CLAUDE_REGISTRATION_PROTOCOL,
+    )
+except Exception:
+    DEFAULT_CLAUDE_PROTOCOL_VERSION = "1.0.0"
+    DEFAULT_CLAUDE_REGISTRATION_PROTOCOL = "browser"
+
 # ============================================================ 入口脚本 schema
 SCRIPTS = [
     # ---------------------------------------------------------------- 主流程
@@ -92,7 +101,14 @@ SCRIPTS = [
             {"flag": "--claude-challenge-wait", "type": "int", "default": 45, "help": "Claude 每个节点等待 Cloudflare 自动通过秒数"},
             {"flag": "--claude-challenge-node-retries", "type": "int", "default": 3, "help": "Claude 提交邮箱前的节点轮换次数"},
             {"flag": "--claude-captcha-manual-timeout", "type": "int", "default": 0, "help": "Claude 等待人工验证秒数；0 表示关闭"},
-            {"flag": "--claude-auth-mode", "type": "choice", "choices": ["magic", "google"],
+            {"flag": "--claude-protocol", "type": "choice", "choices": ["browser", "http"],
+             "labels": {"browser": "Chromium 浏览器协议", "http": "ClaudeX HTTP 协议"},
+             "default": DEFAULT_CLAUDE_REGISTRATION_PROTOCOL, "help": "Claude registration protocol"},
+            {"flag": "--claude-protocol-mailbox-wait", "type": "int", "default": 120,
+             "help": "Claude HTTP protocol magic-link wait timeout"},
+            {"flag": "--claude-protocol-version", "type": "str", "default": DEFAULT_CLAUDE_PROTOCOL_VERSION,
+             "help": "Claude HTTP protocol anthropic-client-version"},
+             {"flag": "--claude-auth-mode", "type": "choice", "choices": ["magic", "google"],
              "labels": {"magic": "Claude Magic Link", "google": "Google OAuth"},
              "default": "magic", "help": "Claude 登录方式；Google OAuth 使用导入的企业/教育邮箱账号"},
             {"flag": "--claude-google-manual-timeout", "type": "int", "default": 0,
@@ -159,6 +175,13 @@ SCRIPTS = [
             {"flag": "--claude-challenge-wait", "type": "int", "default": 45, "help": "Claude 每节点等待 Cloudflare 自动通过秒数"},
             {"flag": "--claude-challenge-node-retries", "type": "int", "default": 3, "help": "Claude 提交邮箱前的节点轮换次数"},
             {"flag": "--claude-captcha-manual-timeout", "type": "int", "default": 0, "help": "Claude 等待人工验证秒数；0 表示关闭"},
+            {"flag": "--claude-protocol", "type": "choice", "choices": ["browser", "http"],
+             "labels": {"browser": "Chromium 浏览器协议", "http": "ClaudeX HTTP 协议"},
+             "default": DEFAULT_CLAUDE_REGISTRATION_PROTOCOL, "help": "Claude registration protocol"},
+            {"flag": "--claude-protocol-mailbox-wait", "type": "int", "default": 120,
+             "help": "Claude HTTP protocol magic-link wait timeout"},
+            {"flag": "--claude-protocol-version", "type": "str", "default": DEFAULT_CLAUDE_PROTOCOL_VERSION,
+             "help": "Claude HTTP protocol anthropic-client-version"},
             {"flag": "--claude-auth-mode", "type": "choice", "choices": ["magic", "google"],
              "labels": {"magic": "Claude Magic Link", "google": "Google OAuth"},
              "default": "magic", "help": "Claude 登录方式；Google OAuth 使用导入的企业/教育邮箱账号"},
@@ -312,7 +335,14 @@ SCRIPTS = [
              "choices": ["", "google", "yyds", "gptmail", "cfmail", "moemail", "custom"], "default": "",
              "labels": {"": "Outlook 资产池", "yyds": "YYDS 临时邮箱", "gptmail": "GPTMail 临时邮箱", "cfmail": "CFMail 临时邮箱", "moemail": "MoeMail 临时邮箱", "custom": "自定义临时邮箱"},
              "help": "邮箱来源；选择临时邮箱后忽略 Outlook/最新 RT"},
-            {"flag": "--domain", "type": "str", "default": "",
+            {"flag": "--protocol", "type": "choice", "choices": ["browser", "http"],
+             "labels": {"browser": "Chromium 浏览器协议", "http": "ClaudeX HTTP 协议"},
+             "default": DEFAULT_CLAUDE_REGISTRATION_PROTOCOL, "help": "Claude registration protocol"},
+            {"flag": "--protocol-mailbox-wait", "type": "int", "default": 120,
+             "help": "HTTP protocol magic-link wait timeout in seconds"},
+            {"flag": "--protocol-version", "type": "str", "default": DEFAULT_CLAUDE_PROTOCOL_VERSION,
+             "help": "Claude HTTP protocol anthropic-client-version"},
+             {"flag": "--domain", "type": "str", "default": "",
              "help": "临时邮箱域名；留空由 provider 自动选择"},
             {"flag": "--latest-rt", "type": "bool", "default": True,
              "help": "Outlook 模式默认使用 emails.txt 中最新未占用且可读 Graph 的 RT 邮箱"},
@@ -699,6 +729,10 @@ ENV_SCHEMA = [
          "help": "必填：Claude hCaptcha 视觉解码 API key"},
         {"key": "CLAUDE_VISION_MODEL", "default": "gemini-3.6-flash",
          "help": "Claude hCaptcha 主视觉模型"},
+        {"key": "CLAUDE_REGISTRATION_PROTOCOL", "type": "choice", "choices": ["browser", "http"],
+         "default": DEFAULT_CLAUDE_REGISTRATION_PROTOCOL, "help": "Claude registration implementation (Chromium or ClaudeX HTTP)"},
+        {"key": "CLAUDE_PROTOCOL_VERSION", "default": DEFAULT_CLAUDE_PROTOCOL_VERSION,
+         "help": "Claude HTTP anthropic-client-version header"},
         {"key": "CLAUDE_BROWSER_CORE_VERSION", "default": "146",
          "help": "Claude 注册和 sessionKey 校验使用的 Chromium 指纹版本"},
         {"key": "CLAUDE_BROWSER_FALLBACK_CORE_VERSION", "default": "130",
@@ -837,6 +871,7 @@ _SMART_ENV_KEYS = {
     "CUSTOM_BROWSER_PATH", "CUSTOM_BROWSER_API",
     "CUSTOM_BROWSER_API_MODE", "CUSTOM_BROWSER_API_KEY", "BITBROWSER_API",
     "ADSPOWER_API", "ADSPOWER_API_KEY", "ADSPOWER_GROUP_ID",
+    "CLAUDE_REGISTRATION_PROTOCOL", "CLAUDE_PROTOCOL_VERSION",
     "CLAUDE_VISION_API_BASE", "CLAUDE_VISION_API_KEY",
     "SMS_API_NAME", "SMS_TOKEN", "HERO_SMS_API_KEY", "SMSMAN_TOKEN",
     "CAPSOLVER_API_KEY", "EZCAPTCHA_API_KEY", "YESCAPTCHA_API_KEY",
@@ -948,6 +983,8 @@ _ENV_LABELS = {
     "ADSPOWER_API": "AdsPower API 地址",
     "ADSPOWER_API_KEY": "AdsPower API 密钥",
     "ADSPOWER_GROUP_ID": "AdsPower 分组 ID",
+    "CLAUDE_REGISTRATION_PROTOCOL": "Claude 协议实现",
+    "CLAUDE_PROTOCOL_VERSION": "Claude HTTP 协议版本",
     # Claude
     "CLAUDE_CHALLENGE_WAIT_SECONDS": "Claude 风控等待时间",
     "CLAUDE_CHALLENGE_NODE_RETRIES": "Claude 风控换节点次数",

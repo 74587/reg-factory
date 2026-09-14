@@ -1,5 +1,16 @@
 ﻿# 更新日志
 
+## 2026-09-15 - 2.1.1（Claude 协议注册优化）
+
+**Claude 注册协议**
+- 新增 ClaudeX 风格 HTTP 注册协议，可通过 `CLAUDE_REGISTRATION_PROTOCOL=http` 或 `--protocol http` 使用。
+- Claude 协议头默认保持 ClaudeX 当前实现的 `anthropic-client-version=1.0.0`，并支持 `.env`、CLI、全流程和 WebUI 统一覆盖。
+- 按账号稳定生成协议身份标识和浏览器资料，减少同一账号跨请求身份漂移。
+- Magic link 提取兼容 HTML 转义和 URL 编码邮件内容。
+
+**验证与打包**
+- 新增 Claude HTTP 协议回归测试及打包入口依赖。
+- 完善 Outlook Graph 授权专用 HTTP/浏览器切换流程。
 ## 2026-08-31 - 2.1.0（K12 独立服务完善）
 
 **Codex K12 新实现**

@@ -3538,17 +3538,42 @@ async def api_authorize_outlook(request: Request):
             with contextlib.suppress(OSError):
                 os.unlink(input_path)
             return JSONResponse({"error": "并发数必须是 1-10 的整数"}, status_code=400)
+        # Dedicated Graph authorization is the safe default for the WebUI:
+        # every account must receive a distinct residential endpoint. Check
+        # capacity before starting the child so an insufficient pool can never
+        # silently reuse one IP for multiple accounts.
+        dedicated_proxy = bool((data or {}).get("dedicated_proxy", True))
+        method = str((data or {}).get("method") or "http").strip().lower()
+        if method not in {"http", "browser"}:
+            with contextlib.suppress(OSError):
+                os.unlink(input_path)
+            return JSONResponse({"error": "Graph 授权方式必须是 http 或 browser"}, status_code=400)
+        task_env = _child_env("outlook")
+        if dedicated_proxy:
+            try:
+                from tools.authorize_outlook import dedicated_proxy_urls
+
+                dedicated_proxy_urls(len(records), task_env)
+            except ValueError as exc:
+                with contextlib.suppress(OSError):
+                    os.unlink(input_path)
+                return JSONResponse({"error": str(exc)}, status_code=400)
         script = schema.script_by_id("unlock_outlook")
         args = {
             "--input": input_path,
             "--concurrency": concurrency,
             "--no-update-pool": bool((data or {}).get("no_update_pool")),
         }
-        task_env = _child_env("outlook")
+        if dedicated_proxy:
+            args["--dedicated-proxy"] = True
         from common import proxy_switch
 
         await asyncio.to_thread(proxy_switch.ensure_proxy_mode, task_env)
-        started = await _start_managed_run(_build_cmd(script, args), "unlock_outlook", task_env, runtime_root)
+        command = _build_cmd(script, args)
+        # ``--method`` is selected by the dedicated Graph authorization UI
+        # control and is intentionally kept out of the general task schema.
+        command.extend(["--method", method])
+        started = await _start_managed_run(command, "unlock_outlook", task_env, runtime_root)
         RUNS[started["run_id"]]["sensitive_input_path"] = input_path
         return {**started, "accepted": len(records), "accepted_emails": [email for email, _password in records]}
     except Exception as exc:

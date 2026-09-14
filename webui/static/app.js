@@ -1838,6 +1838,14 @@ function renderForm(s){
       area.autocomplete = 'off';
       input.replaceWith(area);
     }
+    const proxyLabel = document.createElement('label');
+    proxyLabel.className = 'network-field';
+    proxyLabel.innerHTML = '<input type="checkbox" id="f_dedicated-proxy" checked><span>每个账号使用独立动态住宅 IP（代理池端点数必须不少于账号数）</span>';
+    p.appendChild(proxyLabel);
+    const methodLabel = document.createElement('label');
+    methodLabel.className = 'network-field';
+    methodLabel.innerHTML = '<span>Graph authorization method</span><select id="f_graph-method"><option value="http" selected>HTTP direct</option><option value="browser">Cloak browser</option></select>';
+    p.appendChild(methodLabel);
   }
   if(advancedArgs.length){
     const more = document.createElement('details'); more.className='advanced-fields';
@@ -1964,8 +1972,11 @@ async function runScript(){
   try{
     const endpoint = curSrc.id === 'unlock_outlook' ? '/api/authorize-outlook' : '/api/run';
     const payload = curSrc.id === 'unlock_outlook'
-      ? {accounts: args['--input'] || '', concurrency: args['--concurrency'] || 3, no_update_pool: !!args['--no-update-pool']}
+      ? {accounts: args['--input'] || '', concurrency: args['--concurrency'] || 3, no_update_pool: !!args['--no-update-pool'], dedicated_proxy: !!document.querySelector('#f_dedicated-proxy')?.checked}
       : {script:curSrc.id, args};
+    if(curSrc.id === 'unlock_outlook'){
+      payload.method = $('#f_graph-method')?.value || 'http';
+    }
     r = await (await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)})).json();
   }catch(e){
