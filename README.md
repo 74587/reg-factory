@@ -44,6 +44,15 @@
 
 ---
 
+<p align="center">
+  <a href="https://www.ipwo.net/?ref=githubregfactory">
+    <img src="assets/ipwo-residential-proxy.png" alt="IPWO 住宅代理" width="100%" />
+  </a>
+</p>
+
+> **IPWO住宅代理提供195+地区住宅 IP 资源，适用于 AI 应用、浏览器自动化、海外服务访问及开发测试等场景，为开发者提供多地区网络环境选择。**<br>
+> **重点！**2GB动态住宅流量无门槛发放，<u><u><a href="https://www.ipwo.net/?ref=githubregfactory">领取入口</a></u></u>，进作者群不定时IP福利发放。
+
 > **中转站：** [天天 AI Pro](https://tiantianai.pro) · [天天 AI](https://tiantianai.co)
 >
 > **卡网地址：** [TTCard](https://ttcard.zeabur.app)
